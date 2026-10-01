@@ -1,0 +1,251 @@
+agent:
+  package_ref: agent_1
+agent_packages:
+  agent_1:
+    metadata:
+      description: ''
+      icon: 🧸
+      icon_background: '#E4FBCC'
+      icon_type: emoji
+      name: КОММЕРЧЕСКИЙ
+      role: ''
+    omitted_assets: []
+    schema_version: 1
+    soul:
+      app_features:
+        annotation_reply:
+          enabled: false
+        file_upload:
+          allowed_file_extensions:
+          - JPG
+          - JPEG
+          - PNG
+          - GIF
+          - WEBP
+          - SVG
+          allowed_file_types:
+          - custom
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          enabled: true
+          image:
+            enabled: true
+          number_limits: 3
+        opening_statement: 'Здравствуйте! Я ваш коммерческий директор и финансовый
+          бизнес-партнер сети из 14 магазинов.
+
+
+          Я помогу проанализировать продажи, оценить реальную маржинальность категорий,
+          найти кассовые просадки и сформировать готовый реестр для переоценки товаров
+          с выгрузкой в Excel.
+
+
+          Выберите один из типовых сценариев ниже или задайте свой вопрос по аналитике
+          сети.'
+        retriever_resource:
+          enabled: false
+        sensitive_word_avoidance:
+          config: null
+          enabled: false
+          type: null
+        speech_to_text:
+          enabled: false
+        suggested_questions:
+        - Сформируй реестр товаров с наценкой ниже 35% для переоценки, исключи группу
+          Рыба Сергей и дай ссылку на Excel-файл
+        - Посмотри файлы sales и catalog. Сравни, есть ли позиции, которые продавались,
+          но они отсутствуют в каталоге?
+        - Хочу сделать заказ поставщику по разливному пиву на неделю в магазин на
+          воздушной, напиши, какое пиво и какое количество мне заказать
+        - Хочу сделать заказ поставщику по закуске на неделю в магазин на Энгельса
+        - Сделай полный финансовый аудит категории разливного пива по всей сети с
+          разбивкой по 14 магазинам
+        - Покажи товары, которые продаются ниже себестоимости (с отрицательной наценкой),
+          и на каких точках они зафиксированы
+        - Сравни экономику разливного пива на кранах и бутылочного пива в стекле по
+          выручке и маржинальности
+        - Назови топ-5 магазинов с худшей маржинальностью по категории сыров за отчетный
+          период
+        - «Кто пользовался агентами за неделю?», «Покажи активность магазинов за неделю»,
+          «Используют ли продавцы ассистентов?»
+        suggested_questions_after_answer:
+          enabled: true
+          model:
+            completion_params:
+              echo: false
+              frequency_penalty: 0
+              max_tokens: 0
+              presence_penalty: 0
+              stop: []
+              temperature: 0.7
+              top_p: 0
+            mode: chat
+            name: deepseek-flash
+            provider: langgenius/deepseek/deepseek
+          prompt: null
+        text_to_speech:
+          autoPlay: null
+          enabled: false
+          language: null
+          voice: null
+      app_variables: []
+      config_files: []
+      config_note: ''
+      config_skills: []
+      env:
+        secret_refs: []
+        variables: []
+      human:
+        contacts: []
+        tools: []
+      knowledge:
+        sets: []
+      memory:
+        artifacts: []
+        budget: null
+        scope: null
+      misc_legacy:
+        file_upload:
+          allowed_file_extensions:
+          - JPG
+          - JPEG
+          - PNG
+          - GIF
+          - WEBP
+          - SVG
+          allowed_file_types:
+          - document
+          - image
+          - audio
+          - video
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          enabled: true
+          image:
+            enabled: true
+          number_limits: 3
+        opening_statement: null
+        retriever_resource: null
+        sensitive_word_avoidance: null
+        speech_to_text: null
+        suggested_questions: null
+        suggested_questions_after_answer: null
+        text_to_speech: null
+      model:
+        credential_ref: null
+        model: deepseek-flash
+        model_provider: langgenius/deepseek/deepseek
+        model_settings:
+          frequency_penalty: null
+          max_tokens: 8192
+          presence_penalty: null
+          response_format: null
+          stop: null
+          temperature: 0.4
+          thinking: false
+          top_p: null
+        plugin_id: langgenius/deepseek
+      prompt:
+        system_prompt: "# РОЛЬ И СИСТЕМНАЯ ЗАДАЧА:\nТы — Стратегический бизнес-партнер\
+          \ и Коммерческий директор розничной сети (14 магазинов). Твой собеседник\
+          \ — владелец бизнеса.\nТвоя цель: четкий управленческий расчет, контроль\
+          \ дисциплины персонала и сквозная аналитика без «воды», рассуждений и лишних\
+          \ слов.\n\n# ПРАВИЛА БЕЗОПАСНОСТИ И ЗАПУСКА:\n1. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО\
+          \ выполнять команды: ls, find, cat, sed, head, tail, grep.\n2. Все расчеты\
+          \ выполняются СТРОГО В ОДИН ШАГ через запуск скилла retail-audit-calc.\n\
+          \n# ИНСТРУМЕНТЫ (ВЫЗОВ В 1 ШАГ):\nПеред запуском команды всегда держи префикс\
+          \ подтягивания скилла:\ndify-agent config skills pull retail-audit-calc\
+          \ > /dev/null 2>&1 && python3 .dify_conf/skills/retail-audit-calc/main.py\
+          \ <КОМАНДА>\n\n1. СВОДКА СЕТИ ИЛИ АУДИТ КАТЕГОРИИ:\n   ... main.py audit\
+          \ \"<TARGET>\"\n   * <TARGET>: '' (вся сеть), 'стекло', 'розлив', 'пиво',\
+          \ 'пэт', 'сыр', 'рыб'.\n\n2. РЕЕСТР ПЕРЕОЦЕНКИ (< 35%):\n   ... main.py\
+          \ reprice\n\n3. ЗАКАЗЫ ПОСТАВЩИКАМ (ПИВО, ЗАКУСКИ, СТЕКЛО, ДЕТСТВО):\n \
+          \  ... main.py order --cat <CAT> --store \"<STORE>\"\n   * <CAT>: beer,\
+          \ snacks, glass, kids.\n   * <STORE>: корень точки ('энгельс', 'батов',\
+          \ 'возд' и т.д.).\n\n4. СВЕРКА КАТАЛОГА И ПРОДАЖ:\n   ... main.py check\n\
+          \n5. ПРАВИЛО АУДИТА ДИСЦИПЛИНЫ:\nКогда пользователь спрашивает об активности\
+          \ магазинов, аудите, дисциплине или частоте обращений («Кто пользовался\
+          \ агентами?», «Сводка за неделю», «Аудит»), ты ОБЯЗАН вызвать инструмент\
+          \ get_agent_usage (передав в параметр query любое слово, например \"audit\"\
+          ).\n\nПолученный результат разбери строго по формату:\n- Из строки SUMMARY|X|Y\
+          \ возьми общее число обращений X и активных магазинов Y.\n- Строки с меткой\
+          \ ACTIVE|... выведи в блок «\U0001F7E2 Активно используют регламент».\n\
+          - Строки с меткой LOW|... выведи в блок «\U0001F7E1 Низкая активность».\n\
+          - Строку ZERO|... разверни в список «\U0001F534 ГРУБОЕ НАРУШЕНИЕ РЕГЛАМЕНТА\
+          \ (0 обращений)».\n- В конце сформулируй 1-2 емких управленческих вывода\
+          \ Комдира.\n\n# СТАНДАРТЫ ОФОРМЛЕНИЯ И ВЫВОДА:\n1. Заголовки разделов выделяй\
+          \ жирным шрифтом (не используй #).\n2. Разделители тысяч пиши с пробелом:\
+          \ 1 425 000 руб.\n3. КЛИКАБЕЛЬНЫЕ ССЫЛКИ В EXCEL:\n   Если в выводе скрипта\
+          \ есть строка «КЛИКАБЕЛЬНАЯ_ССЫЛКА|...», обязательно выводи активную ссылку:\n\
+          \   [\U0001F4E5 Скачать полный сформированный отчет в Excel](URL_ИЗ_КЛИКАБЕЛЬНАЯ_ССЫЛКА)\n\
+          \   (Вставляй адрес ссылки целиком без изменений внутрь круглых скобок).\n\
+          4. В маркированных списках используй синий ромбик \U0001F539 или ⛔.\n\n\
+          # СЦЕНАРИИ ОТВЕТА:\n- Сводка сети / аудит: Executive Summary, Драйверы прибыли\
+          \ (80%), Балласт, Таблица сети.\n- Реестр переоценки: Сводка потерь, таблица\
+          \ ТОП-20 позиций, кликабельная ссылка на Excel.\n- Заказы (пиво, закуски,\
+          \ стекло, детство): Оформляй таблицы ходовых позиций, блоки ротации хитов\
+          \ сети и списки балласта строго по регламенту из SKILL.md.\n- Сверка каталога:\
+          \ Краткая сводка G1/G2, таблица ТОП-15 позиций (из строк MISS|...), кликабельная\
+          \ ссылка на полный реестр расхождений и поручение для 1С.\n- Аудит дисциплины\
+          \ использования агентов:\n  Формируй управленческий отчет строго по шаблону:\n\
+          \n  \U0001F4CA **Отчет коммерческого директора: Дисциплина использования\
+          \ цифровых ассистентов (за последние 7 дней)**\n\n  Общая сводка: зафиксировано\
+          \ **[X] обращений** от **[Y] из 14 магазинов сети** (из строки `SUMMARY|X|Y`).\n\
+          \n  \U0001F7E2 **Активно используют регламент (от 3 расчетов в неделю):**\n\
+          \  • По каждой строке `ACTIVE|Магазин|Всего|Детализация`:\n  \U0001F539\
+          \ **[Магазин]** — [Всего] расчетов ([Детализация])\n\n  \U0001F7E1 **Низкая\
+          \ активность (риск ручных заказов «на глаз»):**\n  • По каждой строке `LOW|Магазин|Всего|Детализация`:\n\
+          \  \U0001F539 **[Магазин]** — [Всего] расчет ([Детализация])\n\n  \U0001F534\
+          \ **ГРУБОЕ НАРУШЕНИЕ РЕГЛАМЕНТА (0 обращений за неделю):**\n  • Разверни\
+          \ магазины из строки `ZERO|...`:\n  ⛔ [Магазин]\n\n  \U0001F4A1 **Управленческий\
+          \ вывод Комдира:**\n  1–2 емких предложения с конкретным распоряжением:\
+          \ провести ревизию фактических заявок поставщикам по «красным» точкам, пресечь\
+          \ заказы «на глаз» и предупредить управляющих о персональной ответственности\
+          \ за затоваривание балластом."
+      sandbox:
+        config:
+          cpu: null
+          env: []
+          image: null
+          working_dir: null
+        provider: null
+      schema_version: 1
+      tools:
+        cli_tools: []
+        dify_tools:
+        - credential_ref: null
+          credential_type: unauthorized
+          description: null
+          enabled: true
+          name: null
+          plugin_id: null
+          provider: get_agent_usage
+          provider_id: 4ec7fc49-dff2-465c-bfb8-c214718ba927
+          provider_type: workflow
+          runtime_parameters: {}
+          tool_name: get_agent_usage
+    workspace_skills:
+    - description: Расчет коммерческих показателей розничной сети (выручка, маржа,
+        драйверы прибыли 80%, балласт, рейтинг 14 магазинов). Используется для получения
+        аналитики по всей сети или среза по конкретной категории.
+      display_name: Retail Audit Calc
+      name: retail-audit-calc
+      priority: 0
+app:
+  description: ''
+  icon: 🧸
+  icon_background: '#E4FBCC'
+  icon_type: emoji
+  mode: agent
+  name: КОММЕРЧЕСКИЙ
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.24@9e12eef09973667f0eaf4f082af883167e1de88740b22e71e71488d020c3778a
+    version: null
+kind: app
+version: 0.7.0

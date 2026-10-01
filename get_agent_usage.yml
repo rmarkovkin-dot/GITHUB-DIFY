@@ -1,0 +1,255 @@
+app:
+  description: Формирование сводки аудита дисциплины работы магазинов с агентами за
+    7 дней
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: workflow
+  name: get_agent_usage
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload: {}
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: http-request
+      id: 1790544386687-source-1790544436531-target
+      source: '1790544386687'
+      sourceHandle: source
+      target: '1790544436531'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: 1790544436531-source-1790544486158-target
+      source: '1790544436531'
+      sourceHandle: source
+      target: '1790544486158'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: end
+      id: 1790544486158-source-1790544658013-target
+      source: '1790544486158'
+      sourceHandle: source
+      target: '1790544658013'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: Начало
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: query
+          options: []
+          placeholder: ''
+          required: false
+          type: text-input
+          variable: query
+      height: 109
+      id: '1790544386687'
+      position:
+        x: -232.28000000000003
+        y: 362.5
+      positionAbsolute:
+        x: -232.28000000000003
+        y: 362.5
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP-запрос
+        type: http-request
+        url: https://script.google.com/macros/s/AKfycbwyFOdcITCcIecR-kN7RLO4GnwDn6tqGYa2a64kcMa4YLunOESDZ6NV2hIZWaEv0cq2pw/exec
+        variables: []
+      height: 186
+      id: '1790544436531'
+      position:
+        x: 39
+        y: 390
+      positionAbsolute:
+        x: 39
+        y: 390
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        code: "import json\nimport re\nfrom collections import defaultdict\n\ndef\
+          \ main(args):\n    # Входная переменная из HTTP-запроса к Google Apps Script\n\
+          \    http_body = args.get(\"http_body\", \"\")\n    if not http_body or\
+          \ not isinstance(http_body, str):\n        return {\"report\": \"ERROR:\
+          \ Нет данных лога или неверный формат входных данных.\"}\n\n    # B11: Словарь\
+          \ нормализации. Схлопывает все варианты написания в 14 канонических названий.\n\
+          \    # Ключи — к нижнему регистру, без лишних пробелов.\n    CANONICAL_STORES\
+          \ = {\n        # Энгельса\n        'энгельса': 'Энгельса', 'энгельс': 'Энгельса',\n\
+          \        # Санаторная\n        'санаторная': 'Санаторная', 'санатор': 'Санаторная',\
+          \ 'sanatorn': 'Санаторная', 'санаторн': 'Санаторная',\n        # Нариманова\n\
+          \        'нариманова': 'Нариманова', 'нариманов': 'Нариманова', 'нариман':\
+          \ 'Нариманова', 'nariman': 'Нариманова',\n        # Порт\n        'порт':\
+          \ 'Порт', 'порт-саида': 'Порт',\n        # Воздушная\n        'воздушная':\
+          \ 'Воздушная', 'воздушн': 'Воздушная', 'возд': 'Воздушная', 'vozd': 'Воздушная',\n\
+          \        '8 воздушной': 'Воздушная', '8-й воздушной': 'Воздушная', '8воздушной':\
+          \ 'Воздушная',\n        # Котельниково\n        'котельниково': 'Котельниково',\
+          \ 'котельников': 'Котельниково', 'котельник': 'Котельниково',\n        #\
+          \ ВЛКСМ\n        'влксм': 'ВЛКСМ', 'vlksm': 'ВЛКСМ',\n        # Никитина\n\
+          \        'никитина': 'Никитина', 'никитин': 'Никитина', 'никит': 'Никитина',\n\
+          \        # Калач\n        'калач': 'Калач', 'kalach': 'Калач',\n       \
+          \ # Покупалка\n        'покупалка': 'Покупалка', 'покупалк': 'Покупалка',\n\
+          \        # Сидорова\n        'сидорова': 'Сидорова', 'сидоров': 'Сидорова',\
+          \ 'sidor': 'Сидорова',\n        # Батова\n        'батова': 'Батова', 'батов':\
+          \ 'Батова', 'batov': 'Батова',\n        # Штеменко\n        'штеменко':\
+          \ 'Штеменко', 'штем': 'Штеменко', 'shtemenko': 'Штеменко', 'shtmen': 'Штеменко',\n\
+          \        # Родниковая\n        'родниковая': 'Родниковая', 'родник': 'Родниковая',\
+          \ 'rodnik': 'Родниковая',\n        # Служебные / Тестовые\n        'закупки':\
+          \ 'Закупки (тест)'\n    }\n\n    # Структуры для агрегации\n    store_totals\
+          \ = defaultdict(int)\n    store_categories = defaultdict(lambda: defaultdict(int))\n\
+          \    total_requests = 0\n\n    # Парсинг лога построчно\n    lines = http_body.strip().split('\\\
+          n')\n    for line in lines:\n        if not line.strip():\n            continue\n\
+          \        \n        # Формат строки: \"Дата Время Магазин Категория\" (разделены\
+          \ пробелами/табуляцией)\n        # Пример: \"2026-09-30 15:56:15 vozd snacks\"\
+          \n        parts = line.strip().split()\n        if len(parts) < 4:\n   \
+          \         continue\n        \n        # Дата и время — первые два токена,\
+          \ категория — последний, магазин — всё между ними\n        category = parts[-1].strip().lower()\n\
+          \        raw_store = \" \".join(parts[2:-1]).strip().lower()\n        \n\
+          \        # Нормализация: ищем в словаре, если нет — оставляем как есть (title\
+          \ case)\n        canonical_store = CANONICAL_STORES.get(raw_store, raw_store.title())\n\
+          \        \n        # Пропускаем совсем мусорные строки (неизвестный магазин\
+          \ и не из словаря)\n        if canonical_store not in CANONICAL_STORES.values()\
+          \ and raw_store not in CANONICAL_STORES:\n            continue\n\n     \
+          \   total_requests += 1\n        store_totals[canonical_store] += 1\n  \
+          \      store_categories[canonical_store][category] += 1\n\n    # Классификация\
+          \ магазинов по активности\n    active_stores = []\n    low_stores = []\n\
+          \    zero_stores = []\n    \n    # Список всех 14 основных магазинов сети\n\
+          \    ALL_14_STORES = [\n        'Энгельса', 'Санаторная', 'Нариманова',\
+          \ 'Порт', 'Воздушная',\n        'Котельниково', 'ВЛКСМ', 'Никитина', 'Калач',\
+          \ 'Покупалка',\n        'Сидорова', 'Батова', 'Штеменко', 'Родниковая'\n\
+          \    ]\n\n    for store in ALL_14_STORES:\n        count = store_totals.get(store,\
+          \ 0)\n        if count >= 3:\n            active_stores.append((store, count))\n\
+          \        elif count > 0:\n            low_stores.append((store, count))\n\
+          \        else:\n            zero_stores.append(store)\n\n    # \"Закупки\
+          \ (тест)\" — отдельно, не входит в 14 магазинов\n    test_count = store_totals.get('Закупки\
+          \ (тест)', 0)\n    if test_count > 0:\n        active_stores.append(('Закупки\
+          \ (тест)', test_count))\n\n    # Сортировка по убыванию обращений\n    active_stores.sort(key=lambda\
+          \ x: x[1], reverse=True)\n    low_stores.sort(key=lambda x: x[1], reverse=True)\n\
+          \    zero_stores.sort()\n\n    # Формирование сырого вывода для агента Комдира\n\
+          \    report_lines = []\n    report_lines.append(f\"SUMMARY|{total_requests}|{len(active_stores)\
+          \ + len(low_stores)}\")\n    \n    for store, count in active_stores:\n\
+          \        cats = \", \".join([f\"{k}: {v}\" for k, v in sorted(store_categories[store].items(),\
+          \ key=lambda item: item[1], reverse=True)])\n        report_lines.append(f\"\
+          ACTIVE|{store}|{count}|{cats}\")\n        \n    for store, count in low_stores:\n\
+          \        cats = \", \".join([f\"{k}: {v}\" for k, v in sorted(store_categories[store].items(),\
+          \ key=lambda item: item[1], reverse=True)])\n        report_lines.append(f\"\
+          LOW|{store}|{count}|{cats}\")\n        \n    for store in zero_stores:\n\
+          \        report_lines.append(f\"ZERO|{store}\")\n\n    return {\"report\"\
+          : \"\\n\".join(report_lines)}"
+        code_language: python3
+        outputs:
+          report:
+            children: null
+            type: string
+        selected: true
+        title: Код
+        type: code
+        variables:
+        - value_selector:
+          - '1790544436531'
+          - body
+          value_type: string
+          variable: http_body
+      height: 52
+      id: '1790544486158'
+      position:
+        x: 120.77999999999997
+        y: 195
+      positionAbsolute:
+        x: 120.77999999999997
+        y: 195
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        outputs:
+        - value_selector:
+          - '1790544486158'
+          - report
+          value_type: string
+          variable: report
+        selected: false
+        title: Вывод
+        type: end
+      height: 88
+      id: '1790544658013'
+      position:
+        x: 265.9
+        y: 299.72
+      positionAbsolute:
+        x: 265.9
+        y: 299.72
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    viewport:
+      x: 551.3034179023915
+      y: 27.62091503267962
+      zoom: 1.388888888888889
+  rag_pipeline_variables: []
