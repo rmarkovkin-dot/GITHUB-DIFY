@@ -1,7 +1,3 @@
---- retail-audit-calc/scripts/normalize_beer_kb.py (原始)
-
-
-+++ retail-audit-calc/scripts/normalize_beer_kb.py (修改后)
 #!/usr/bin/env python3
 """
 Нормализация базы знаний ассортимента ПК "Канцлеръ".

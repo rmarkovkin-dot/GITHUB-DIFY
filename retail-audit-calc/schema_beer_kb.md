@@ -1,7 +1,3 @@
---- retail-audit-calc/schema_beer_kb.md (原始)
-
-
-+++ retail-audit-calc/schema_beer_kb.md (修改后)
 # Схема базы знаний ассортимента ПК "Канцлеръ"
 
 ## Описание
