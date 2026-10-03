@@ -1,12 +1,19 @@
-import argparse, glob, re, os
+import argparse, glob, re, os, sys
 import pandas as pd
 import numpy as np
+_p = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _p not in sys.path:
+    sys.path.insert(0, _p)
+from scripts.utils import send_google_log
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", type=str, default="", help="Категория или ключ поиска")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     target_key = args.target.strip().lower()
+
+    # B22: логирование сетевого аудита (неблокирующее, IMP-05)
+    send_google_log("NETWORK_AUDIT", f"Аудит сети: {target_key if target_key else 'общий'}")
 
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -41,7 +48,7 @@ def main():
         cat_frames.append(pd.read_excel(cat_p1))
     if os.path.exists(cat_p2):
         cat_frames.append(pd.read_excel(cat_p2))
-    
+
     if cat_frames:
         cat_df = pd.concat(cat_frames, ignore_index=True)
     else:

@@ -22,14 +22,14 @@ def shorten_url(long_url):
 
 STOP_WORDS = {
     'пиво', 'светлое', 'темное', 'фильтрованное', 'нефильтрованное', 'пастеризованное',
-    'непастеризованное', '0.45', '0.45л', '0.5', '0.5л', '1л', 'чипсы', 'снеки', 'пэт', 
+    'непастеризованное', '0.45', '0.45л', '0.5', '0.5л', '1л', 'чипсы', 'снеки', 'пэт',
     'вес', 'шт', 'в', 'ассортименте', 'напиток', 'живое'
 }
 
 def check_group(sales_file, cat_file, label, base_dir):
     sp = os.path.join(base_dir, sales_file)
     cp = os.path.join(base_dir, cat_file)
-    
+
     if not os.path.exists(sp) or not os.path.exists(cp):
         return None
 
@@ -73,23 +73,23 @@ def check_group(sales_file, cat_file, label, base_dir):
     fuzzy_cnt = (agg['Тип_ошибки'] != 'Полностью отсутствует').sum()
 
     print(f"RES|{label}|Всего_продаж:{len(sold)}|В_каталоге:{len(c)}|Нет_в_каталоге:{len(agg)}|Реально_нет:{real_cnt}|Разное_написание:{fuzzy_cnt}|Объем_потерь:{round(agg['Кол'].sum(),1)}")
-    
+
     return agg
 
 def main():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     all_diffs = []
-    
+
     res1 = check_group('sales.xlsx', 'catalog.xlsx', 'G1', base_dir)
     if res1 is not None: all_diffs.append(res1)
-    
+
     res2 = check_group('sales_g2.xlsx', 'catalog_g2.xlsx', 'G2', base_dir)
     if res2 is not None: all_diffs.append(res2)
 
     short_link = ''
     if all_diffs:
         full_df = pd.concat(all_diffs, ignore_index=True)
-        
+
         # Печатаем ТОП-15 позиций расхождений гарантированно (по продажам)
         top15 = full_df.sort_values('Кол', ascending=False).head(15)
         for _, r in top15.iterrows():
@@ -99,9 +99,9 @@ def main():
         export_df = full_df[['Группа_файлов', 'Наименование', 'Тип_ошибки', 'Похожее_в_каталоге', 'Кол', 'Маг', 'Магазины']].copy()
         export_df.columns = ['Группа', 'Наименование в продажах', 'Статус', 'Похожее в каталоге (1С)', 'Объем продаж', 'Кол-во точек', 'Список магазинов']
         export_df.to_excel(out_file, index=False)
-        
-        up = subprocess.run(['dify-agent', 'file', 'upload', out_file], capture_output=True, text=True)
+
         try:
+            up = subprocess.run(['dify-agent', 'file', 'upload', out_file], capture_output=True, text=True)
             p_url = json.loads(up.stdout).get('public_download_url', '')
             if p_url:
                 raw_url = 'https://difyretail.ru' + p_url

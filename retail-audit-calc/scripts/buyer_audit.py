@@ -1,9 +1,15 @@
 import os, sys, argparse, math, re
+import os as _os, sys as _sys
+_p = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _p not in _sys.path:
+    _sys.path.insert(0, _p)
 import pandas as pd
 import numpy as np
+from scripts.normalizer import canonicalize_sku
+from scripts.utils import send_google_log
 
 ALLOWED_GROUPS = [
-    'арахис', 'детств', 'мясо', 'новая закуска', 
+    'арахис', 'детств', 'мясо', 'новая закуска',
     'рыба снеки', 'рыбные снеки', 'семечки', 'кукуруза', 'сухар', 'гренки', 'сыр', 'чипсы'
 ]
 
@@ -14,57 +20,12 @@ STRATEGIC_KIDS = [
 def norm_str(s):
     return re.sub(r'\s+', ' ', str(s).strip().lower().replace('"', '').replace("'", ''))
 
-def canonicalize_sku(name):
-    """Сквозная нормализация названий для объединения одинаковых товаров из G1 и G2"""
-    raw = str(name).strip()
-    s = norm_str(raw)
-    
-    # 1. Мясные чипсы и карпаччо
-    if 'чипсы мясные' in s or 'чипсы сыровяленые' in s:
-        if 'свинин' in s:
-            if 'корейк' in s: return 'Чипсы мясные свиные "Корейка" (вес)'
-            return 'Чипсы мясные свинина 75г'
-        if 'куриц' in s or 'курин' in s:
-            if 'карпаччо' in s: return 'Чипсы мясные курица "Карпаччо"'
-            return 'Чипсы мясные курица 75г'
-    if 'карпаччо' in s:
-        return 'Чипсы мясные курица "Карпаччо"'
-
-    # 2. Орехи
-    if 'фисташк' in s:
-        return 'Фисташка жареная соленая'
-    if s.startswith('арахис') or s.startswith('ядра арахиса'):
-        # Убираем граммовки и скобки
-        cleaned = re.sub(r'\(.*?\)', '', raw).strip()
-        cleaned = re.sub(r'\b(ядра арахиса|арахис крупный|арахис жареный)\b', 'Арахис', cleaned, flags=re.I)
-        return re.sub(r'\s+', ' ', cleaned).strip()
-
-    # 3. Сыры
-    if 'сыр нити' in s or s.startswith('нити'):
-        flavour = ''
-        if 'копчен' in s: flavour = ' копченый'
-        elif 'укроп' in s: flavour = ' с укропом'
-        elif 'чеснок' in s: flavour = ' с чесноком'
-        elif 'паприк' in s or 'чили' in s: flavour = ' паприка и чили'
-        elif 'икра' in s: flavour = ' красная икра'
-        elif 'аджик' in s: flavour = ' аджика'
-        return f'Сыр Нити{flavour} (вес)'
-    
-    if 'балыковый' in s:
-        if 'карандаш' in s: return 'Сыр Балыковый копчёный (Карандаш)'
-        if 'патрон' in s: return 'Сыр Балыковый копчёный (Патрон)'
-
-    # Унификация фасовки в граммах: (75 г) -> 75г, 75 гр -> 75г
-    res = re.sub(r'\(\s*(\d+)\s*г\s*\)', r'\1г', raw, flags=re.I)
-    res = re.sub(r'(\d+)\s+г\b', r'\1г', res, flags=re.I)
-    res = re.sub(r'(\d+)\s*гр\b', r'\1г', res, flags=re.I)
-    return re.sub(r'\s+', ' ', res).strip()
 
 def determine_unit(name, cat_unit):
     """Строгое разделение штучных упаковок и развесного товара"""
     n = norm_str(name)
     u = str(cat_unit).lower().strip()
-    
+
     # Жесткие штучные маркеры
     if any(x in n for x in ['75г', '90г', '50г', '95г', '100г', '130г', 'стакан', 'пакет', 'пачка', 'в/у', 'в\\у']):
         if 'карпаччо' not in n or '75г' in n:
@@ -78,9 +39,12 @@ def main():
     parser.add_argument("--group", type=str, default="", help="Фильтр по группе или SKU")
     parser.add_argument("--days", type=int, default=14, help="Горизонт заказа в днях")
     args = parser.parse_args()
-    
+
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     query = args.group.strip().lower()
+
+    # B22: логирование аудита закупщика (неблокирующее, IMP-05)
+    send_google_log("NETWORK_AUDIT", f"Аудит закупщика: {query if query else 'общий'}")
 
     def get_path(fname):
         p1 = os.path.join(base_dir, fname)
@@ -94,11 +58,11 @@ def main():
     sales_dfs = []
     if os.path.exists(s1): sales_dfs.append(pd.read_excel(s1, header=1))
     if os.path.exists(s2): sales_dfs.append(pd.read_excel(s2, header=1))
-    
+
     if not sales_dfs:
         print("ERR|Файлы продаж не найдены")
         return
-        
+
     df_sales = pd.concat(sales_dfs, ignore_index=True)
     df_sales['Наименование'] = df_sales['Наименование'].astype(str).str.strip()
     df_sales['МАГАЗИН'] = df_sales['МАГАЗИН'].astype(str).str.strip()
@@ -110,7 +74,7 @@ def main():
     cat_dfs = []
     if os.path.exists(c1): cat_dfs.append(pd.read_excel(c1))
     if os.path.exists(c2): cat_dfs.append(pd.read_excel(c2))
-    
+
     cat_map_grp = {}
     cat_map_unit = {}
     if cat_dfs:
@@ -118,7 +82,7 @@ def main():
         df_cat['Наименование'] = df_cat['Наименование'].astype(str).str.strip()
         df_cat['Группа товара'] = df_cat['Группа товара'].astype(str).str.strip()
         df_cat['Единица измерения'] = df_cat.get('Единица измерения', pd.Series()).fillna('').astype(str).str.strip().str.lower()
-        
+
         for _, r in df_cat.drop_duplicates('Наименование').iterrows():
             k = norm_str(r['Наименование'])
             cat_map_grp[k] = r['Группа товара']
@@ -183,13 +147,13 @@ def main():
     # 1. СВОДКА
     df_pcs = sku_agg[sku_agg['Ед'] == 'шт']
     df_kg = sku_agg[sku_agg['Ед'] == 'кг']
-    
+
     tot_pcs = df_pcs['Продажи'].sum()
     rate_pcs = tot_pcs / 30.0
     tot_kg = df_kg['Продажи'].sum()
     rate_kg = tot_kg / 30.0
     active_stores = df['МАГАЗИН'].nunique()
-    
+
     print(f"СВОДКА|{int(round(tot_pcs))}|{rate_pcs:.1f}|{tot_kg:.1f}|{rate_kg:.2f}|{active_stores}")
 
     # 2. ЛИДЕРЫ (Группа А — 80% объема внутри каждой единицы измерения)
@@ -199,7 +163,7 @@ def main():
         sorted_sub = sub_df.sort_values('Продажи', ascending=False).reset_index(drop=True)
         sorted_sub['cumsum'] = sorted_sub['Продажи'].cumsum()
         top_a = sorted_sub[(sorted_sub['cumsum'] - sorted_sub['Продажи'] < 0.8 * tot_vol) | (sorted_sub['cumsum'] <= 0.8 * tot_vol)]
-        
+
         # Гарантируем вывод хотя бы ТОП-3, если кумулятивная сумма набралась слишком быстро
         if len(top_a) < 3 and len(sorted_sub) >= 3:
             top_a = sorted_sub.head(3)
@@ -217,17 +181,17 @@ def main():
     for _, r in sku_agg.iterrows():
         nm_low = r['Canon_SKU'].lower()
         is_strategic = any(sk in nm_low for sk in STRATEGIC_KIDS)
-        
+
         # Стратегические детские позиции не считаем неликвидом
         if is_strategic:
             continue
-            
+
         # Дыра в дистрибуции (хорошие продажи на точку, но охват меньше половины сети)
         sales_per_store = r['Продажи'] / r['Охват'] if r['Охват'] > 0 else 0
         if r['Охват'] < (total_stores_cnt // 2) and (r['Продажи'] >= 5 or sales_per_store >= 2.0):
             vol_str = f"{int(round(r['Продажи']))}" if r['Ед'] == 'шт' else f"{r['Продажи']:.2f}"
             print(f"P|{r['Canon_SKU']}|{r['Ед']}|{vol_str}|{r['Охват']}|Дыра_в_дистрибуции")
-            
+
         # Неликвид (слабые суммарные продажи при широкой представленности)
         elif (r['Продажи'] < 14 and r['Охват'] >= (total_stores_cnt // 2)) or \
              ('сыр' in nm_low and 'пряд' in nm_low and r['Продажи'] < 40) or \
@@ -242,7 +206,7 @@ def main():
         Кг=('Количество', lambda x: df.loc[x.index].loc[df.loc[x.index, 'Ед'] == 'кг', 'Количество'].sum()),
         Всего=('Количество', 'sum')
     ).reset_index().sort_values('Всего', ascending=False)
-    
+
     net_total_vol = df['Количество'].sum()
     for _, r in st_agg.iterrows():
         share = (r['Всего'] / net_total_vol * 100) if net_total_vol > 0 else 0

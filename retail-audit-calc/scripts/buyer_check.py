@@ -1,37 +1,11 @@
 import os, sys, re, argparse, difflib, json, urllib.request
+import os as _os, sys as _sys
+_p = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _p not in _sys.path:
+    _sys.path.insert(0, _p)
 import pandas as pd
 from scripts.normalizer import norm, clean_snack_name, get_tokens
-
-WEBHOOK_TOKEN = 'YOUR_SECRET_TOKEN_HERE'
-WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwyFOdcITCcIecR-kN7RLO4GnwDn6tqGYa2a64kcMa4YLunOESDZ6NV2hIZWaEv0cq2pw/exec"
-
-def send_google_log(store, cat):
-    if str(store).lower().startswith(('тест_', 'test_')): return
-    try:
-        payload = json.dumps({"store": store, "category": cat}).encode('utf-8')
-        url_with_token = f"{WEBHOOK_URL}?token={WEBHOOK_TOKEN}" if WEBHOOK_TOKEN != 'YOUR_SECRET_TOKEN_HERE' else WEBHOOK_URL
-        req = urllib.request.Request(url_with_token, data=payload, headers={'Content-Type': 'application/json'}, method='POST')
-        urllib.request.urlopen(req, timeout=3)
-    except Exception: pass
-
-def is_g2_store(store_key):
-    return any(x in str(store_key).lower().strip() for x in ['батов', 'штем', 'родник', 'batov', 'shtem', 'rodnik'])
-
-def load_store_data(base_dir, store_key):
-    is_g2 = is_g2_store(store_key)
-    sf, cf = ('sales_g2.xlsx' if is_g2 else 'sales.xlsx'), ('catalog_g2.xlsx' if is_g2 else 'catalog.xlsx')
-    sp, cp = os.path.join(base_dir, sf), os.path.join(base_dir, cf)
-    sales, cat = pd.DataFrame(), pd.DataFrame()
-    if os.path.exists(sp):
-        sales = pd.read_excel(sp, header=1)
-        sales.columns = [str(c).strip() for c in sales.columns]
-        sales['Количество'] = pd.to_numeric(sales['Количество'], errors='coerce').fillna(0)
-        sales = sales[sales['Количество'] > 0].copy()
-    if os.path.exists(cp):
-        cat = pd.read_excel(cp, header=0)
-        cat.columns = [str(c).strip() for c in cat.columns]
-        cat = cat.drop_duplicates(subset=['Наименование'])
-    return sales, cat, is_g2
+from scripts.utils import is_g2_store, load_store_data, send_google_log, parse_items_arg
 
 def determine_unit(row):
     u, n = str(row.get('cat_unit', '')).strip().lower(), str(row['clean_name']).lower()
@@ -47,7 +21,9 @@ def match_product(query_name, catalog_items):
     q_norm, q_tokens = norm(query_name), set(get_tokens(query_name))
     for item in catalog_items:
         if q_norm == item['norm']: return item
-        if len(q_norm) >= 6 and (q_norm in item['norm'] or item['norm'] in q_norm): return item
+    # IMP-04: убрано опасное вхождение подстроки (q_norm in item['norm']),
+    # дававшее ложные срабатывания на коротких запросах.
+    # Ниже — токенизированный поиск и SequenceMatcher (не тронуты).
 
     best_item, best_score = None, 0.0
     for item in catalog_items:
@@ -64,9 +40,6 @@ def match_product(query_name, catalog_items):
         r = difflib.SequenceMatcher(None, q_norm, item['norm']).ratio()
         if r > best_ratio: best_ratio, fallback = r, item
     return fallback if best_ratio >= 0.45 else None
-
-def parse_items_arg(items_str):
-    return [item.strip() for item in items_str.split(';') if item.strip()] if items_str else []
 
 def main():
     parser = argparse.ArgumentParser(description="Buyer check tool")
