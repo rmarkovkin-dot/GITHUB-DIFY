@@ -1,7 +1,7 @@
 import re
 
 def norm(s):
-    """Базовая нормализация строки: нижний регистр, удаление кавычек, ё->е, схлопывание пробелов."""
+    """Базовая нормализация строки: нижний регистр, удаление кавычек, ё->е, схлопывание пробелов + специфичные замены для закусок."""
     s = str(s).strip().lower().replace('ё', 'е').replace('"', '').replace("'", '')
     s = re.sub(r'\bпятачк', 'пяточк', s)
     s = re.sub(r'\bвял\b|\bвял\.', 'вяленый', s)
@@ -26,7 +26,6 @@ def get_tokens(s):
     stops = {'в', 'и', 'на', 'с', 'гр', 'г', 'вес', 'п', 'ооо', 'вк', 'штук', 'шт', 'для'}
     return [t for t in tokens if t not in stops and len(t) > 1]
 
-<<<<<<< HEAD
 def _canonicalize_beer_base(name):
     """Старая канонизация пива (без изменений). Переименована для обёртки FIX-05."""
     raw = str(name).strip()
@@ -55,44 +54,29 @@ def _canonicalize_beer_base(name):
     if 'канцлер 0' in s or 'безалкогольн' in s: return 'Канцлер "0" Безалкогольное'
     if 'квас белый' in s: return 'Квас белый'
     if s.startswith('квас'): return 'Квас'
-=======
-# Точные замены для нормализации названий разливного пива (5 правил + бонус)
-BEER_NAME_REPLACEMENTS = {
-    "боровское белое": "Боровское белое",
-    "боровское белое (н/ф)": "Боровское белое",
-    "дипломат": "Дипломат светлое нф",
-    "дипломат пиво светлое непастеризованное нефильтрованное алк 4,5 пл 11": "Дипломат светлое нф",
-    "дипломат светлое нф": "Дипломат светлое нф",
-    "десятка": "Десятка светлое фильтрованное",
-    "десятка светлое фильтрованное": "Десятка светлое фильтрованное",
-    "десятка пиво светлое непастеризованное фильтрованное алк 3,5 пл 10": "Десятка светлое фильтрованное",
-    "деситка": "Десятка светлое фильтрованное",
-    "октоберфест фильтрованное": "Октоберфест фильтрованное",
-    "октоберфест пиво светлое непастеризованное фильтрованное алк 4,5": "Октоберфест фильтрованное",
-    "леди на велосипеде": "Леди На Велосипеде",
-    "леди на велосипеде 0.5л": "Леди На Велосипеде",
-}
->>>>>>> 2f4f5f6371123f145263285785c6899112967502
 
-# Позиции, которые НЕ относятся к разливу (продаются в стекле, шт)
-BEER_EXCLUDED_NAMES = {
-    "воронежское возрожденный рецепт 1978",
-}
+    is_nf = bool(re.search(r'\bнф\b|нефильтр|н/ф', s))
+    is_dark, is_white, base_name = 'темн' in s, 'бел' in s and 'баланс' not in s, None
 
-def normalize_beer_name(name: str) -> str:
-    """Точечная замена написаний разливного пива согласно согласованным правилам."""
-    if not name or not isinstance(name, str):
-        return ""
-    
-    key = norm(name)
-    
-    for excl in BEER_EXCLUDED_NAMES:
-        if excl in key:
-            return ""
-            
-    return BEER_NAME_REPLACEMENTS.get(key, name.strip())
+    if 'чешск' in s: base_name = 'Чешское'
+    elif 'жигулевск' in s: base_name = 'Жигулевское'
+    elif 'заправск' in s: base_name = 'Заправское'
+    elif 'боровск' in s: base_name = 'Боровское'
+    elif 'восьмидесят' in s: base_name = 'Восьмидесятые'
+    elif 'бундес' in s: base_name = 'Бундес'
+    elif 'империал' in s: base_name = 'Империал'
+    elif 'лазаревск' in s: base_name = 'Лазаревское'
+    elif 'всесоюзн' in s: base_name = 'Всесоюзное'
+    elif 'бархатн' in s: base_name = 'Бархатное'
+    elif 'баланс бел' in s: base_name = 'Баланс Белого'
+    elif 'лорд' in s: base_name = 'Лорд'
+    elif 'райт' in s: base_name = 'Райт'
+    elif 'збитень' in s: base_name = 'Збитень'
+    elif 'рижск' in s: base_name = 'Рижское'
+    elif 'ейск' in s: base_name = 'Ейское'
+    elif 'кардымовск' in s: base_name = 'Кардымовское'
+    elif 'бирховен' in s: base_name = 'Бирховен'
 
-<<<<<<< HEAD
     if base_name:
         if is_white: return f'{base_name} белое (н/ф)' if is_nf else f'{base_name} белое'
         if is_dark: return f'{base_name} темное'
@@ -173,7 +157,3 @@ def canonicalize_beer(name):
         return 'Октоберфест фильтрованное'
     res = _canonicalize_beer_base(name)
     return _BEER_CANON_REPLACEMENTS_LOWER.get(res.strip().lower(), res)
-=======
-# Совместимость: seller_order.py импортирует функцию под этим именем
-canonicalize_beer = normalize_beer_name
->>>>>>> 2f4f5f6371123f145263285785c6899112967502
