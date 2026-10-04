@@ -74,6 +74,7 @@ def process_beer(sales, cat, store_key, is_g2, sf=SAFETY_FACTOR_DEFAULT):
         sales_b = sales[is_draft].copy()
 
     sales_b['canon'] = sales_b['Наименование'].map(canonicalize_beer)
+    sales_b = sales_b[sales_b['canon'].astype(str).str.strip() != ''].copy()  # FIX-05: отсекаем исключённые позиции (канон = '')
     all_stores = sales_b['МАГАЗИН'].dropna().unique()
     target_store = find_store_in_list(store_key, all_stores)
     if not target_store: return
