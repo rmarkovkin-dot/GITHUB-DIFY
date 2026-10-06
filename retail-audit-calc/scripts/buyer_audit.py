@@ -6,7 +6,7 @@ if _p not in _sys.path:
 import pandas as pd
 import numpy as np
 from scripts.normalizer import canonicalize_sku
-from scripts.utils import send_google_log
+from scripts.utils import send_google_log, match_sales_by_query
 
 ALLOWED_GROUPS = [
     'арахис', 'детств', 'мясо', 'новая закуска',
@@ -123,12 +123,14 @@ def main():
 
     df = df_sales[df_sales.apply(is_allowed, axis=1)].copy()
 
-    # Фильтр пользователя по группе
+    # Фильтр пользователя по группе (или одиночной позиции — B23/IMP-07:
+    # единый матчер match_sales_by_query ловит SKU с переставленными словами и опечатками)
     if query:
         df = df[
             df['Broad_Grp'].str.contains(query, na=False) |
             df['Группа товара'].str.lower().str.contains(query, na=False) |
-            df['Canon_SKU'].str.lower().str.contains(query, na=False)
+            df['Canon_SKU'].str.lower().str.contains(query, na=False) |
+            match_sales_by_query(df, args.group)
         ].copy()
 
     if df.empty:
@@ -154,6 +156,7 @@ def main():
     rate_kg = tot_kg / 30.0
     active_stores = df['МАГАЗИН'].nunique()
 
+    print(f"ПЕРИОД|{args.days}")  # B23/IMP-07: явное окно расчёта (qty(N) = 30-дневная сумма × N/30)
     print(f"СВОДКА|{int(round(tot_pcs))}|{rate_pcs:.1f}|{tot_kg:.1f}|{rate_kg:.2f}|{active_stores}")
 
     # 2. ЛИДЕРЫ (Группа А — 80% объема внутри каждой единицы измерения)

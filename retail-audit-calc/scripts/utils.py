@@ -1,10 +1,12 @@
 """Общие утилиты для скриптов retail-audit-calc (IMP-01)."""
+import difflib
 import os
 import re
 import json
 import threading
 import urllib.request
 import pandas as pd
+from scripts.normalizer import norm, get_tokens
 
 WEBHOOK_TOKEN = 'YOUR_SECRET_TOKEN_HERE'  # Оставь как есть, если B12 пропущен, или замени на свой токен
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwyFOdcITCcIecR-kN7RLO4GnwDn6tqGYa2a64kcMa4YLunOESDZ6NV2hIZWaEv0cq2pw/exec"
@@ -59,3 +61,98 @@ def load_store_data(base_dir, store_key):
 
 def parse_items_arg(items_str):
     return [item.strip() for item in items_str.split(';') if item.strip()] if items_str else []
+
+# ---------------------------------------------------------------------------
+# IMP-07 / B23: единый слой матчинга позиций и разрешения магазинов.
+# Используют: buyer_check.py, buyer_audit.py (одиночные позиции), seller_order.py.
+# Никаких точечных правил под конкретные SKU — только общий алгоритм.
+# ---------------------------------------------------------------------------
+
+STORE_ALIASES = {
+    'нариманов': 'нариманова',
+    'нариманова': 'нариманов',
+    'порт': 'порт-саида',
+    'порт-саида': 'порт',
+}
+
+def match_sales_by_query(df, query):
+    """Единый трёхступенчатый поиск позиций. Возвращает булеву маску по df.
+
+    Ступень 1: подстрока по norm-имени (в обе стороны).
+    Ступень 2: все токены запроса (get_tokens, len>2) присутствуют в norm-имени
+               (любой порядок слов).
+    Ступень 3: токен-нечёткость: каждый токен запроса совпадает с каким-либо
+               токеном имени по difflib ratio >= 0.8 (опечатки).
+    Пустой запрос -> маска всё False.
+    """
+    names = df['Наименование'].astype(str)
+    if query is None or not str(query).strip():
+        return pd.Series([False] * len(df), index=df.index)
+
+    q_norm = norm(query)
+    mask_sub = names.map(lambda x: (q_norm in norm(x)) or (norm(x) in q_norm and len(norm(x)) >= 4))
+
+    q_tokens = [t for t in get_tokens(query) if len(t) > 2]
+    mask_tok = pd.Series([False] * len(df), index=df.index)
+    mask_fuzzy = pd.Series([False] * len(df), index=df.index)
+    if q_tokens:
+        def _tok_all(x):
+            n = norm(x)
+            return all(t in n for t in q_tokens)
+        mask_tok = names.map(_tok_all)
+
+        def _tok_fuzzy(x):
+            name_tokens = [t for t in get_tokens(x) if len(t) > 2]
+            if not name_tokens:
+                return False
+            for qt in q_tokens:
+                best = max(difflib.SequenceMatcher(None, qt, nt).ratio() for nt in name_tokens)
+                if best < 0.8:
+                    return False
+            return True
+        # ступень 3 считаем только там, где ступени 1-2 уже не сработали (экономия)
+        need_fuzzy = ~(mask_sub | mask_tok)
+        if need_fuzzy.any():
+            mask_fuzzy = names.where(need_fuzzy).map(lambda x: _tok_fuzzy(x) if isinstance(x, str) else False)
+            mask_fuzzy = mask_fuzzy.fillna(False).astype(bool)
+
+    return mask_sub | mask_tok | mask_fuzzy
+
+def resolve_store(key, stores):
+    """Единое разрешение магазина: точное -> key в store -> store в key ->
+    алиасы -> difflib >= 0.85."""
+    stores = list(stores)
+    sk = str(key).lower().strip()
+    if sk.startswith(('тест_', 'test_')):
+        sk = sk.split('_', 1)[1]
+
+    def _match_one(k):
+        # 1. точное совпадение (без регистра)
+        for st in stores:
+            if str(st).lower().strip() == k:
+                return st
+        # 2. key внутри store
+        for st in stores:
+            if k and k in str(st).lower():
+                return st
+        # 3. store внутри key
+        for st in sorted(stores, key=lambda s: -len(str(s))):
+            stl = str(st).lower().strip()
+            if stl and stl in k:
+                return st
+        # 4. алиасы (в обе стороны, затем повтор шагов 1-3 для alias-ключа)
+        alias = STORE_ALIASES.get(k)
+        if alias:
+            for st in stores:
+                stl = str(st).lower().strip()
+                if stl == alias or alias in stl or (stl and stl in alias):
+                    return st
+        # 5. нечёткий difflib >= 0.85
+        best, best_ratio = None, 0.0
+        for st in stores:
+            r = difflib.SequenceMatcher(None, k, str(st).lower().strip()).ratio()
+            if r > best_ratio:
+                best_ratio, best = r, st
+        return best if best_ratio >= 0.85 else None
+
+    return _match_one(sk)

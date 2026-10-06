@@ -5,7 +5,7 @@ if _p not in _sys.path:
     _sys.path.insert(0, _p)
 import pandas as pd
 from scripts.normalizer import norm, clean_snack_name, canonicalize_beer
-from scripts.utils import is_g2_store, find_store_in_list, load_store_data, send_google_log
+from scripts.utils import is_g2_store, find_store_in_list, load_store_data, send_google_log, match_sales_by_query
 
 SAFETY_FACTOR_DEFAULT = 1.15  # страховой запас (FIX-03), единый стандарт с buyer_audit.py, переопределяется через --safety-factor
 
@@ -34,12 +34,8 @@ def process_single_item(sales, cat, store_key, item_query, is_g2):
     q_norm = norm(item_query)
     if not q_norm.strip():
         print(f"{str(item_query).strip()} — 0 шт за 7 дней, 0 шт за 30 дней"); return
-    matched = st_df[st_df['norm_k'].str.contains(re.escape(q_norm), na=False)]
-    if matched.empty:
-        tokens = [t for t in q_norm.split() if len(t) > 2]
-        if tokens:
-            mask = st_df['norm_k'].apply(lambda x: all(t in x for t in tokens))
-            matched = st_df[mask]
+    # B23/IMP-07: единый матчер вместо локальной логики (подстрока + токены).
+    matched = st_df[match_sales_by_query(st_df, item_query)]
 
     if matched.empty:
         print(f"{item_query.strip()} — 0 шт за 7 дней, 0 шт за 30 дней"); return
